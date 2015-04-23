@@ -1,0 +1,210 @@
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+<style>
+	.calculator{
+		width: 500px;
+		margin: 0 auto;
+	}
+	.calculator label{
+		display: block;
+		font-weight: bold;
+	}
+	.calculator input{
+		display: block;
+		width: 100%;
+	}
+	.calculator .row{
+		margin-bottom: 10px;
+	}
+	.calculator-result{
+		width: 100%;
+	}
+</style>
+<div class="calculator">
+	<h1>Loan Amortization Schedule</h1>
+	<hr>
+	<h2>Enter values</h2>
+	<div class="row">
+		<label>Loan amount</label> <input type="number" id="load_amount" placeholder="$" value="800" />
+	</div>
+	<div class="row">
+		<label>Annual interest rate</label> <input type="number" id="annual_interest_rate" placeholder="%" value="3" />
+	</div>
+	<div class="row">
+		<label>Loan period in years</label> <input type="number" id="loan_period_in_years" value="2" />
+	</div>
+	<div class="row">
+		<label>Number of payments per year</label> <input type="number" id="number_of_payments_per_year" value="12" />
+	</div>
+	<div class="row">
+		<label>Start date of loan</label> <input type="date" id="start_date_of_loan" />
+	</div>
+	<div class="row">
+		<label>Optional extra payments</label> <input type="number" id="extra_payment" value="0" />
+	</div>
+	<input type="button" id="btnCalculate" value="Calculate" />
+	<h2>Loan summary</h2>
+	<div>
+		<label>Scheduled payment: <span class="sched_payment"></span></label> <label>Scheduled number of payments:
+		<span class="sched_number_payment"></span></label> <label>Actual number of payments:
+		<span class="actual_number_payment"></span></label> <label>Total early payments:
+		<span class="total_early_payment"></span></label> <label>Total interest:
+		<span class="total_interest"></span></label>
+	</div>
+</div>
+<table class="calculator-result" cellpadding="1" cellspacing="1">
+	<thead>
+		<tr>
+			<th>PmtNo.</th>
+			<th>Payment Date</th>
+			<th>Beginning Balance</th>
+			<th>Scheduled Payment</th>
+			<th>Extra Payment</th>
+			<th>Total Payment</th>
+			<th>Principal</th>
+			<th>Interest</th>
+			<th>Ending Balance</th>
+			<th>Cumulative Interest</th>
+		</tr>
+	</thead>
+	<tbody id="result">
+	</tbody>
+</table>
+<script>
+	var ExcelFormulas = {
+		
+		PMT: function (rate, per, nper, pv, fv) {
+			fv = parseFloat(fv);
+			nper = parseFloat(nper);
+			pv = parseFloat(pv);
+			per = parseFloat(per);
+			if (( per == 0 ) || ( nper == 0 )) {
+				alert("Why do you want to test me with zeros?");
+				return (0);
+			}
+			rate = eval((rate) / (per * 100));
+			if (rate == 0)
+			{
+				pmt_value = -(fv + pv) / nper;
+			}
+			else {
+				x = Math.pow(1 + rate, nper);
+				pmt_value = -((rate * (fv + x * pv)) / (-1 + x));
+			}
+
+			pmt_value = this.format_number(pmt_value);
+
+			return (pmt_value);
+		},
+		format_number :function(n,d){
+			d = d ? d : 4;
+			return parseFloat(n.toFixed(d));
+		}
+
+	};
+
+	function Calculate() {
+
+
+
+		var load_amount = jQuery('#load_amount');
+		var annual_interest_rate = jQuery('#annual_interest_rate');
+		var loan_period_in_years = jQuery('#loan_period_in_years');
+		var number_of_payments_per_year = jQuery('#number_of_payments_per_year');
+		var start_date_of_loan = jQuery('#start_date_of_loan');
+		var extra_payment = jQuery('#extra_payment');
+
+
+		var var_load_amount = parseInt(load_amount.val());
+		var var_annual_interest_rate = parseInt(annual_interest_rate.val());
+		var var_loan_period_in_years = parseInt(loan_period_in_years.val());
+		var var_number_of_payments_per_year = parseInt(number_of_payments_per_year.val());
+		var var_start_date_of_loan = start_date_of_loan.val();
+		var var_extra_payment = parseInt(extra_payment.val());
+
+		if (isNaN(var_load_amount)) {
+			alert('Invalid Number');
+			load_amount.select();
+
+		} else if (isNaN(var_annual_interest_rate)) {
+			alert('Invalid Number');
+			annual_interest_rate.select();
+		} else if (isNaN(var_loan_period_in_years)) {
+			alert('Invalid Number');
+			loan_period_in_years.select();
+		} else if (isNaN(var_number_of_payments_per_year)) {
+			alert('Invalid Number');
+			number_of_payments_per_year.select();
+			//}else if(isNaN(var_start_date_of_loan)){
+		} else if (isNaN(var_extra_payment)) {
+			alert('Invalid Number');
+			extra_payment.select();
+		} else {
+
+			var result = jQuery('#result');
+			var str = '';
+			var total_months = var_loan_period_in_years * 12;
+			var ctr = 0;
+
+
+			var sched_payment = ExcelFormulas.PMT(var_annual_interest_rate, var_number_of_payments_per_year, (var_loan_period_in_years * var_number_of_payments_per_year), -var_load_amount,0);
+
+
+			jQuery('.sched_payment').html( sched_payment );
+			jQuery('.sched_number_payment,.actual_number_payment').html((var_number_of_payments_per_year * var_loan_period_in_years));
+
+
+			var beginning_bal = var_load_amount;
+			var total_payment = sched_payment + var_extra_payment;
+			var interest =  (beginning_bal*((var_annual_interest_rate/100)/var_number_of_payments_per_year));
+
+			var principal = total_payment-interest;
+			var ending_bal = beginning_bal-principal;
+			var cumulative_interest = interest;
+
+			var var_start_date_of_loan = new Date(var_start_date_of_loan);
+
+			while (beginning_bal > 0) {
+
+				var y = var_start_date_of_loan.getFullYear();
+				var m = (var_start_date_of_loan.getMonth() +1) + ( (ctr)*12/var_number_of_payments_per_year) ;
+				var d = var_start_date_of_loan.getDate();
+
+				var payment_date = new Date( y, m ,d );
+				payment_date = ( payment_date.getMonth() + 1 )+'/'+ d +'/'+payment_date.getFullYear() ;
+
+
+				str += '<tr><th>' + (ctr+1) + '</th><th>'+payment_date+'</th><th>'+
+				ExcelFormulas.format_number(beginning_bal,2)+'</th><th>'+
+				ExcelFormulas.format_number(sched_payment,2)+'</th><th>'+
+				ExcelFormulas.format_number(var_extra_payment,2)+'</th><th>'+
+				ExcelFormulas.format_number(total_payment,2)+'</th><th>'+
+				ExcelFormulas.format_number(principal,2)+'</th><th>'+
+				ExcelFormulas.format_number(interest,2)+'</th><th>'+
+				ExcelFormulas.format_number(ending_bal,2)+'</th><th>'+
+				ExcelFormulas.format_number(cumulative_interest,2)+'</th></tr>';
+
+				beginning_bal = ending_bal;
+				total_payment = sched_payment + var_extra_payment;
+
+				interest = (beginning_bal*((var_annual_interest_rate/100)/var_number_of_payments_per_year));
+				principal = (total_payment-interest);
+				ending_bal = (beginning_bal - principal);
+				cumulative_interest = (cumulative_interest + interest);
+
+				ctr++;
+				var_load_amount = ending_bal;
+
+				if(ending_bal<0){
+					var_extra_payment = ending_bal = 0;
+				}
+
+
+			}
+
+			jQuery('.total_interest').html(ExcelFormulas.format_number(cumulative_interest,2));
+			result.html(str);
+		}
+	}
+	jQuery('#start_date_of_loan').val(new Date().toISOString().substring(0, 10));
+	jQuery('#btnCalculate').click(Calculate)
+</script>

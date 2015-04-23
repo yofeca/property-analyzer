@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+	<meta charset="UTF-8">
+	<title>IPA</title>
+	<script src="jquery-1.11.2.min.js"></script>
+	<style>
+		/* table{ border-collapse: collapse }
+		td{ border: 1px solid #000 } */
+		input[type="text"]{ width: 100%; box-sizing: border-box; }
+		.box{ box-sizing: border-box; float: left;}
+		.box-label{ text-align: right}
+		.percentage{width: 40px;}
+		.annual{width: 150px;}
+
+		.ectc-label{
+			width: 200px !important; float: left; font-size: 12px
+		}
+		.ectc-input{
+			width: 100px !important; float: left; font-size: 12px
+		}
+
+	</style>
+	<script>
+		$(document).ready(function(){
+			var purchase_price            = $('input[name="purchase-price"]');
+			var gross_monthly_income      = $('input[name="gross-monthly-income"]');
+			var property_taxes            = $('input[name="property-taxes"]');
+			var fire_insurance_percentage = $('input[name="fire-insurance-percentage"]');
+			var fire_insurance            = $('input[name="fire-insurance"]');
+			var management_percentage     = $('input[name="management-percentage"]');
+			var management                = $('input[name="management"]');
+			var maintenance_percentage    = $('input[name="maintenance-percentage"]');
+			var maintenance               = $('input[name="maintenance"]');
+			var vacancy_percentage        = $('input[name="vacancy-percentage"]');
+			var vacancy                   = $('input[name="vacancy"]');
+			var condo_fees                = $('input[name="condo-fees"]');
+			var gross_monthly_expenses    = $('input[name="gross-monthly-expenses"]');
+			var net_monthly_income        = $('input[name="net-monthly-income"]');
+			var maximum_pi                = $('input[name="maximum-pi"]');
+			var actual_monthly_pi         = $('input[name="actual-monthly-pi"]');
+			var actual_debt_coverage      = $('input[name="actual-debt-coverage"]');
+			var property_address          = $('input[name="property-address"]');
+			var asking_price              = $('input[name="asking-price"]');
+			var current_annual_yield      = $('input[name="current-anual-yield"]');
+			var debt_coverage_ratio       = $('input[name="debt-coverage-ratio"]');
+
+			$('input[name="compute-ipa"]').on('click',function(){
+				fire_insurance.val(compute_percentages(fire_insurance_percentage.val()));
+				maintenance.val(compute_percentages(maintenance_percentage.val()));
+				management.val(compute_percentages(management_percentage.val()));
+				vacancy.val(compute_percentages(vacancy_percentage.val()));
+
+				gme = compute_gross_monthly_expenses();
+				gross_monthly_expenses.val(gme);
+
+				ne = compute_net_income(gross_monthly_income.val(), gme);
+				net_monthly_income.val(ne);				
+				
+				mpi = compute_maximum_pi(ne);
+				maximum_pi.val(mpi);
+
+				adc = compute_actual_debt_coverage(ne,actual_monthly_pi.val());
+				actual_debt_coverage.val(adc);
+
+				compute_ipa();
+			});
+
+			function compute_ipa(){
+
+				$('input[name="rr-annually"]').val(parseFloat($('input[name="rr-monthly"]').val()*12).toFixed(2));
+				$('input[name="cf-annually"]').val(parseFloat($('input[name="cf-monthly"]').val()*12).toFixed(2));
+				$('input[name="t-monthly"]').val(parseFloat($('input[name="t-annually"]').val()/12).toFixed(2));
+
+				$('input[name="m-monthly"]').val(parseFloat($('input[name="rr-monthly"]').val()*($('input[name="m-percentage"]').val()/100)).toFixed(2));
+				$('input[name="m-annually"]').val(parseFloat($('input[name="m-monthly"]').val()*12).toFixed(2));
+
+				$('input[name="va-monthly"]').val(parseFloat($('input[name="rr-monthly"]').val()*($('input[name="va-percentage"]').val()/100)).toFixed(2));
+				$('input[name="va-annually"]').val(parseFloat($('input[name="va-monthly"]').val()*12).toFixed(2));
+
+				$('input[name="rm-monthly"]').val(parseFloat($('input[name="rr-monthly"]').val()*($('input[name="rm-percentage"]').val()/100)).toFixed(2));
+				$('input[name="rm-annually"]').val(parseFloat($('input[name="rm-monthly"]').val()*12).toFixed(2));
+
+				$('input[name="current-annual-yield"]').val(parseFloat(($('input[name="rr-annually"]').val()/$('input[name="asking-price"]').val()) * 100).toFixed(2));
+				$('input[name="debt-coverage-ratio"]').val(actual_debt_coverage.val());
+
+				var tea = parseFloat(parseFloat($('input[name="cf-annually"]').val()) + parseFloat($('input[name="m-annually"]').val()) + parseFloat($('input[name="va-annually"]').val()) + parseFloat($('input[name="rm-annually"]').val()) + parseFloat($('input[name="t-annually"]').val())).toFixed(2);
+				var tem = parseFloat(parseFloat($('input[name="cf-monthly"]').val()) + parseFloat($('input[name="m-monthly"]').val()) + parseFloat($('input[name="va-monthly"]').val()) + parseFloat($('input[name="rm-monthly"]').val()) + parseFloat($('input[name="t-monthly"]').val())).toFixed(2);
+				$('input[name="total-expense-annually"]').val(tea);
+				$('input[name="total-expense-monthly"]').val(tem);
+
+				$('input[name="loan-amount"]').val(parseFloat(asking_price.val()*(parseFloat($('input[name="net-mort"]').val()/100).toFixed(2))).toFixed(2));
+				compute_estimated_cash_to_close();
+			}
+
+			function compute_estimated_cash_to_close(){
+				var legal = isNaN($('input[name="ectc-legal"]').val()) ? 0 : $('input[name="ectc-legal"]').val();
+				var appraisal = isNaN($('input[name="ectc-appraisal"]').val()) ? 0 : $('input[name="ectc-appraisal"]').val();
+				var inspection = isNaN($('input[name="ectc-inspection"]').val()) ? 0 : $('input[name="ectc-inspection"]').val();
+				var month_reserve = isNaN($('input[name="ectc-month-reserve"]').val()) ? 0 : $('input[name="ectc-month-reserve"]').val();
+				var renovations_upgrade = isNaN($('input[name="ectc-renovations-upgrade"]').val()) ? 0 : $('input[name="ectc-renovations-upgrade"]').val();
+				var estimated_annual_insurance = isNaN($('input[name="ectc-estimated-annual-insurance"]').val()) ? 0 : $('input[name="ectc-estimated-annual-insurance"]').val();
+
+				var dp = parseFloat(asking_price.val() * .2).toFixed(2);
+				$('input[name="ectc-20-percent-down"]').val(dp);
+
+				var total_ectc = parseFloat(parseFloat(legal) + parseFloat(appraisal) + parseFloat(inspection) + parseFloat(month_reserve) + parseFloat(renovations_upgrade) + parseFloat(estimated_annual_insurance) + parseFloat(dp)).toFixed(2);
+				console.log(legal +'-'+ appraisal+'-'+  inspection +'-'+ month_reserve+'-'+  renovations_upgrade+'-'+  estimated_annual_insurance +'-'+ dp);
+				$('input[name="ectc-total"]').val(parseFloat(total_ectc).toFixed(2));
+
+			}
+
+			function compute_percentages(p){
+				if(p>0){
+					var value = parseFloat(gross_monthly_income.val() * (p/100)).toFixed(2);
+					return value;
+				}else{
+					return 0;
+				}
+			}
+
+			function compute_gross_monthly_expenses(){
+				var pt   = parseFloat(property_taxes.val());
+				var fi   = parseFloat(fire_insurance.val());
+				var mgmt = parseFloat(management.val());
+				var main = parseFloat(maintenance.val());
+				var v    = parseFloat(vacancy.val());
+				var cf   = parseFloat(condo_fees.val());
+				var sum  = pt + fi + mgmt + main + v + cf;
+				//gross_monthly_income.val(sum);
+				return sum;
+			}
+
+			function compute_net_income(gmi, gme){
+				gmi = parseFloat(gmi);
+				gme = parseFloat(gme);
+				ni = gmi - gme;
+				return ni;
+			}
+
+			function compute_maximum_pi(ne){
+				pi = parseFloat(ne / 1.1).toFixed(2);
+				return pi;
+			}
+
+			function compute_actual_debt_coverage(nmi,ami){
+				adc = parseFloat(nmi/ami).toFixed(2);
+				return adc;
+			}
+
+		});
+	</script>
+</head>
+
+<body>
+	<table>
+		<h2>1.1</h2>
+		<tr>
+			<td><label class="label" for="purchase-price">Purchase Price:</label></td>
+			<td></td>
+			<td><input class="input" type="number" name="purchase-price" placeholder="$" value="18500.00" /></td>
+		</tr>
+		<tr>
+			<td><label class="label" for="gross-monthly-income">Gross Monthly Income:</label></td>
+			<td></td>
+			<td><input class="input" type="number" name="gross-monthly-income" placeholder="$" value="1395.00" /></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="property-taxes">Property Taxes:</label></td>
+			<td></td>
+			<td><input class="input" type="number" name="property-taxes" placeholder="$" value="135.58" step="0.01" /></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="fire-insurance">Fire Insurance:</label></td>
+			<td><input class="input" type="number" name="fire-insurance-percentage" placeholder="0%" value="20" min="0" max="100" /></td>
+			<td><input class="input" type="text" name="fire-insurance" placeholder="$" value="" disabled /></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="management">Management:</label></td>
+			<td><input class="input" type="number" name="management-percentage" placeholder="0%" value="" min="0" max="100" /></td>
+			<td><input class="input" type="text" name="management" placeholder="$" value="" disabled /></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="maintenance">Maintenance:</label></td>
+			<td><input class="input" type="number" name="maintenance-percentage" placeholder="0%" value="" min="0" max="100" /></td>
+			<td><input class="input" type="text" name="maintenance" placeholder="$" value="" disabled /></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="vacancy">Vacancy:</label></td>
+			<td><input class="input" type="number" name="vacancy-percentage" placeholder="0%" value="5" min="0" max="100"/></td>
+			<td><input class="input" type="text" name="vacancy" placeholder="$" value="" disabled /></td>
+		</tr>
+
+		<tr>
+			<!--Source IPA > Condo Fess > Monthly-->
+			<td><label class="label" for="condo-fees">Condo Fees:</label></td>
+			<td></td>
+			<td><input class="input" type="number" name="condo-fees" placeholder="$" value="195.00" step="0.01" /></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="gross-monthly-expenses">Gross Monthly Expenses:</label></td>
+			<td></td>
+			<td><input class="input" type="text" name="gross-monthly-expenses" placeholder="$" value="" disabled/></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="net-monthly-income">Net Monthly Income:</label></td>
+			<td></td>
+			<td><input class="input" type="text" name="net-monthly-income" placeholder="$" value="" disabled/></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="maximum-pi">1.1% Maximum P&I:</label></td>
+			<td></td>
+			<td><input class="input" type="text" name="maximum-pi" placeholder="$" value="" disabled /></td>
+		</tr>
+
+		<tr>
+			<!--Source Loan Ammortization Schedule > Loan Summary > Scheduled Payment-->
+			<td><label class="label" for="actual-monthly-pi">Actual P&I:</label></td>
+			<td></td>
+			<td><input class="input" type="number" name="actual-monthly-pi" placeholder="$" value="625.66" step="0.01" /></td>
+		</tr>
+
+		<tr>
+			<td><label class="label" for="actual-debt-coverage">Actual Debt Coverage:</label></td>
+			<td></td>
+			<td><input class="input" type="text" name="actual-debt-coverage" placeholder="$" value="" disabled /></td>
+		</tr>
+	</table>
+	<hr />
+	<table>
+		<tr>
+			<td colspan="5">
+				<table style="width: 100%">
+					<tr><td colspan="2" style="text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 10px">
+						<h3 style="margin-bottom: 5px">Investment Property Analysis</h3>
+						"Condominium"
+						</td>
+					</tr>
+					<tr>
+						<td><label class="label" for="property-address">Property Address:</label></td>
+						<td><input class="input" type="text" name="property-address" placeholder="Address" value="17, 15128-22St Edm AB" /></td>
+					</tr>
+					<tr>
+						<td><label class="label" for="asking-price">Asking Price:</label></td>
+						<td><input class="input" type="number" name="asking-price" placeholder="$" value="185500.00" /></td>
+					</tr>
+					<tr>
+						<td><label class="label" for="current-anual-yield">Current Anual Yield:</label></td>
+						<td><input class="input" disabled type="text" name="current-annual-yield" placeholder="%" value="" disabled/></td>
+					</tr>
+					<tr>
+						<td><label class="label" for="debt-coverage-ratio">Debt Coverage Ratio:</label></td>
+						<td><input class="input" disabled type="text" name="debt-coverage-ratio" placeholder="0" value="" disabled/></td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<th style="width: 200px"></th>
+			<th style="width: 150px">Aunually</th>
+			<th style="width: 150px">Monthly</th>
+			<th style="width: 50px">&nbsp;</th>
+			<th style="width: 200px">&nbsp;</th>
+		</tr>
+		<tr>
+			<td>Rent Required:</td>
+			<td><input disabled type="text" name="rr-annually" placeholder="$" value="" disabled/></td>
+			<td><input type="number" name="rr-monthly" placeholder="0" value="1395" step="0.01" /></td>
+			<td><input class="percentage" type="number" name="rr-percentage" placeholder="%" value="" /></td>
+			<td><input type="text" name="rr-comment" placeholder="Comment" value="Estimated monthly rent" /></td>
+		</tr>
+		<tr>
+			<td>Condo Fees:</td>
+			<td><input disabled type="text" name="cf-annually" placeholder="$" value="" disabled/></td>
+			<td><input type="number" name="cf-monthly" placeholder="0" value="195" step="0.01" /></td>
+			<td><input class="percentage" type="number" name="cf-percentage" placeholder="%" value="" /></td>
+			<td><input type="text" name="cf-comment" placeholder="Comment" value="Estimated monthly condo fees" /></td>
+		</tr>
+		<tr>
+			<td>Taxes:</td>
+			<td><input type="number" name="t-annually" placeholder="$" value="1627.00" step="0.01" /></td>
+			<td><input disabled type="text" name="t-monthly" placeholder="0" value="" /></td>
+			<td><input class="percentage" type="number" name="t-percentage" placeholder="%" value="" /></td>
+			<td><input type="text" name="t-comment" placeholder="Comment" value="Estimated Annual taxes" /></td>
+		</tr>
+		<tr>
+			<td>Management:</td>
+			<td><input disabled type="text" name="m-annually" placeholder="$" value="" /></td>
+			<td><input disabled type="text" name="m-monthly" placeholder="0" value="" /></td>
+			<td><input class="percentage" type="number" name="m-percentage" placeholder="%" value="10" /></td>
+			<td><input type="text" name="m-comment" placeholder="Comment" value="Estimated Property Management Fees" /></td>
+		</tr>
+		<tr>
+			<td>Vacancy Allowance:</td>
+			<td><input disabled type="text" name="va-annually" placeholder="$" value="" /></td>
+			<td><input disabled type="text" name="va-monthly" placeholder="0" value="" /></td>
+			<td><input class="percentage" type="number" name="va-percentage" placeholder="%" value="3" /></td>
+			<td><input type="text" name="va-comment" placeholder="Comment" value="Estimated Vacancy Allowance" /></td>
+		</tr>
+		<tr>
+			<td>Repairs & Maintenance:</td>
+			<td><input disabled type="text" name="rm-annually" placeholder="$" value="" /></td>
+			<td><input disabled type="text" name="rm-monthly" placeholder="0" value="" /></td>
+			<td><input class="percentage" type="number" name="rm-percentage" placeholder="%" value="3" /></td>
+			<td><input type="text" name="rm-comment" placeholder="Comment" value="Estimated Repairs & Maintenance" /></td>
+		</tr>
+		<tr>
+			<td style="text-align: right">TOTAL EXPENSE:</td>
+			<td><input type="text" name="total-expense-annually" disabled /></td>
+			<td><input type="text" name="total-expense-monthly" disabled /></td>
+			<td></td>
+			<td></td>
+		</tr>
+		<tr>
+			<td><label style="width: 30%;" class="box box-label">Parking: </label><input type="text" name="parking" value="Garage" style="width: 70%"  class="box" /></td>
+			<td colspan="4"><label style="width: 30%" class="box box-label">Chattels: </label><input type="text" name="chattels" value="As-Is,Where-Is" style="width: 70%"  class="box" /></td>
+		</tr>
+		<tr>
+			<td><label style="width: 60%;" class="box box-label">Bedrooms: </label><input type="number" name="bedrooms" value="3" style="width: 40%"  class="box" /></td>
+			<td><label style="width: 60%;" class="box box-label">Year Built: </label><input type="number" name="yearbuilt" value="2003" style="width: 40%"  class="box" /></td>
+			<td colspan="3"><label style="width: 30%;" class="box box-label">Sq. Ft.: </label><input type="number" name="sqft" value="1162" style="width: 70%"  class="box" /></td>
+		</tr>
+		<tr>
+			<td colspan="5" style="border-bottom: 1px solid #CCC">
+				<table style="font-size: 12px; text-align: center !important; ">
+					<tr>
+						<th style="width: 150px">New Mort. LTV:</th>
+						<th style="width: 50px">%</th>
+						<th style="width: 150px">Loan Ammount</th>
+						<th style="width: 150px">Amortization</th>
+						<th style="width: 250px">Payment(PI) Monthly</th>
+					</tr>
+					<tr>
+						<td><input class="box" style="width: 100%; text-align: center" type="number" name="net-mort" value="80" min="1" max="100" /></td>
+						<td><input class="box" style="width: 100%; text-align: center" type="number" name="net-mort-percentage" value="3" min="1" max="100" /></td>
+						<td><input class="box" style="width: 100%; text-align: center" disabled type="text" name="loan-amount" value="" /></td>
+						<td><input class="box" style="width: 100%; text-align: center" type="number" name="amortization" value="30" /></td>
+						<!--Source Loan Ammortization > Scheduled payment -->
+						<td><input class="box" style="width: 100%; text-align: center" type="number" name="payment-pi-monthly" value="625.66" /></td>
+					</tr>
+				</table>
+			</td>
+		</tr>
+			<tr><td colspan="5">
+				<b>Estimated Cash To Close</b>
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">Legal</label><input class="ectc-input" type="number" name="ectc-legal" value="1500"/>
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">Appraisal</label><input  class="ectc-input" type="number" name="ectc-appraisal" value="350"/>
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">Inspection</label><input  class="ectc-input" type="number" name="ectc-inspection" value="480"/>
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">1 Month Reserve</label><input  class="ectc-input" type="number" name="ectc-month-reserve" value="1395"/>
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">Renovations & Upgrades</label><input class="ectc-input" type="text" name="ectc-renovations-upgrade" value="TBD"/>
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">Estimated Annual Insurance</label><input  class="ectc-input" type="number" name="ectc-estimated-annual-insurance" value="225"/>
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">20% Down Payment</label><input  class="ectc-input" disabled type="text" name="ectc-20-percent-down" />
+			</td></tr>
+			<tr><td colspan="5">
+				<label class="ectc-label">&nbsp;</label><input  class="ectc-input" disabled type="text" name="ectc-total" />
+			</td></tr>
+		<tr>
+			<td colspan="5"><input type="submit" name="compute-ipa" value="Compute" style="float: right" /></td>
+		</tr>
+	</table>
+
+</body>
+</html>
